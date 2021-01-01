@@ -91,6 +91,7 @@ import com.facebook.presto.sql.tree.JoinCriteria;
 import com.facebook.presto.sql.tree.JoinOn;
 import com.facebook.presto.sql.tree.JoinUsing;
 import com.facebook.presto.sql.tree.Lateral;
+import com.facebook.presto.sql.tree.Literal;
 import com.facebook.presto.sql.tree.LongLiteral;
 import com.facebook.presto.sql.tree.NaturalJoin;
 import com.facebook.presto.sql.tree.Node;
@@ -155,6 +156,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static com.facebook.presto.SystemSessionProperties.getMaxGroupingSets;
+import static com.facebook.presto.SystemSessionProperties.isAllowWindowOrderByLiterals;
 import static com.facebook.presto.common.type.BigintType.BIGINT;
 import static com.facebook.presto.common.type.BooleanType.BOOLEAN;
 import static com.facebook.presto.common.type.TypeSignature.parseTypeSignature;
@@ -163,6 +165,7 @@ import static com.facebook.presto.metadata.MetadataUtil.createQualifiedObjectNam
 import static com.facebook.presto.spi.StandardErrorCode.INVALID_FUNCTION_ARGUMENT;
 import static com.facebook.presto.spi.StandardErrorCode.NOT_FOUND;
 import static com.facebook.presto.spi.StandardWarningCode.PERFORMANCE_WARNING;
+import static com.facebook.presto.spi.StandardWarningCode.REDUNDANT_ORDER_BY;
 import static com.facebook.presto.spi.function.FunctionKind.AGGREGATE;
 import static com.facebook.presto.spi.function.FunctionKind.WINDOW;
 import static com.facebook.presto.sql.NodeUtils.getSortItemsFromOrderBy;
@@ -210,6 +213,7 @@ import static com.facebook.presto.sql.analyzer.SemanticErrorCode.VIEW_IS_RECURSI
 import static com.facebook.presto.sql.analyzer.SemanticErrorCode.VIEW_IS_STALE;
 import static com.facebook.presto.sql.analyzer.SemanticErrorCode.VIEW_PARSE_ERROR;
 import static com.facebook.presto.sql.analyzer.SemanticErrorCode.WILDCARD_WITHOUT_FROM;
+import static com.facebook.presto.sql.analyzer.SemanticErrorCode.WINDOW_FUNCTION_ORDERBY_LITERAL;
 import static com.facebook.presto.sql.analyzer.TypeSignatureProvider.fromTypes;
 import static com.facebook.presto.sql.planner.ExpressionDeterminismEvaluator.isDeterministic;
 import static com.facebook.presto.sql.planner.ExpressionInterpreter.expressionOptimizer;
@@ -827,12 +831,16 @@ class StatementAnalyzer
         {
             Scope withScope = analyzeWith(node, scope);
             Scope queryBodyScope = process(node.getQueryBody(), withScope);
+            List<Expression> orderByExpressions = emptyList();
             if (node.getOrderBy().isPresent()) {
-                analyzeOrderBy(node, queryBodyScope);
+                orderByExpressions = analyzeOrderBy(node, getSortItemsFromOrderBy(node.getOrderBy()), queryBodyScope);
+                if (queryBodyScope.getOuterQueryParent().isPresent() && !node.getLimit().isPresent()) {
+                    // not the root scope and ORDER BY is ineffective
+                    analysis.markRedundantOrderBy(node.getOrderBy().get());
+                    warningCollector.add(new PrestoWarning(REDUNDANT_ORDER_BY, "ORDER BY in subquery may have no effect"));
+                }
             }
-            else {
-                analysis.setOrderByExpressions(node, emptyList());
-            }
+            analysis.setOrderByExpressions(node, orderByExpressions);
 
             // Input fields == Output fields
             analysis.setOutputExpressions(node, descriptorToFields(queryBodyScope));
@@ -1122,12 +1130,22 @@ class StatementAnalyzer
             List<Expression> orderByExpressions = emptyList();
             Optional<Scope> orderByScope = Optional.empty();
             if (node.getOrderBy().isPresent()) {
-                orderByScope = Optional.of(computeAndAssignOrderByScope(node.getOrderBy().get(), sourceScope, outputScope));
-                orderByExpressions = analyzeOrderBy(node, orderByScope.get(), outputExpressions);
+                if (node.getSelect().isDistinct()) {
+                    verifySelectDistinct(node, outputExpressions);
+                }
+
+                OrderBy orderBy = node.getOrderBy().get();
+                orderByScope = Optional.of(computeAndAssignOrderByScope(orderBy, sourceScope, outputScope));
+
+                orderByExpressions = analyzeOrderBy(node, orderBy.getSortItems(), orderByScope.get());
+
+                if (sourceScope.getOuterQueryParent().isPresent() && !node.getLimit().isPresent()) {
+                    // not the root scope and ORDER BY is ineffective
+                    analysis.markRedundantOrderBy(orderBy);
+                    warningCollector.add(new PrestoWarning(REDUNDANT_ORDER_BY, "ORDER BY in subquery may have no effect"));
+                }
             }
-            else {
-                analysis.setOrderByExpressions(node, emptyList());
-            }
+            analysis.setOrderByExpressions(node, orderByExpressions);
 
             List<Expression> sourceExpressions = new ArrayList<>(outputExpressions);
             node.getHaving().ifPresent(sourceExpressions::add);
@@ -1519,6 +1537,27 @@ class StatementAnalyzer
                 }
 
                 Window window = windowFunction.getWindow().get();
+                if (window.getOrderBy().filter(
+                        orderBy -> orderBy.getSortItems()
+                                .stream()
+                                .anyMatch(item -> item.getSortKey() instanceof Literal))
+                        .isPresent()) {
+                    if (isAllowWindowOrderByLiterals(session)) {
+                        warningCollector.add(
+                                new PrestoWarning(
+                                        PERFORMANCE_WARNING,
+                                        String.format(
+                                                "ORDER BY literals/constants with window function: '%s' is unnecessary and expensive. If you intend to ORDER BY using ordinals, please use the actual expression instead of the ordinal",
+                                                windowFunction)));
+                    }
+                    else {
+                        throw new SemanticException(
+                                WINDOW_FUNCTION_ORDERBY_LITERAL,
+                                node,
+                                "ORDER BY literals/constants with window function: '%s' is unnecessary and expensive. If you intend to ORDER BY using ordinals, please use the actual expression instead of the ordinal",
+                                windowFunction);
+                    }
+                }
 
                 ImmutableList.Builder<Node> toExtract = ImmutableList.builder();
                 toExtract.addAll(windowFunction.getArguments());
@@ -2178,27 +2217,6 @@ class StatementAnalyzer
             return withScope;
         }
 
-        private void analyzeOrderBy(Query node, Scope orderByScope)
-        {
-            checkState(node.getOrderBy().isPresent(), "orderBy is absent");
-
-            List<SortItem> sortItems = getSortItemsFromOrderBy(node.getOrderBy());
-            analyzeOrderBy(node, sortItems, orderByScope);
-        }
-
-        private List<Expression> analyzeOrderBy(QuerySpecification node, Scope orderByScope, List<Expression> outputExpressions)
-        {
-            checkState(node.getOrderBy().isPresent(), "orderBy is absent");
-
-            List<SortItem> sortItems = getSortItemsFromOrderBy(node.getOrderBy());
-
-            if (node.getSelect().isDistinct()) {
-                verifySelectDistinct(node, outputExpressions);
-            }
-
-            return analyzeOrderBy(node, sortItems, orderByScope);
-        }
-
         private void verifySelectDistinct(QuerySpecification node, List<Expression> outputExpressions)
         {
             for (SortItem item : node.getOrderBy().get().getSortItems()) {
@@ -2250,7 +2268,6 @@ class StatementAnalyzer
             }
 
             List<Expression> orderByFields = orderByFieldsBuilder.build();
-            analysis.setOrderByExpressions(node, orderByFields);
             return orderByFields;
         }
 
