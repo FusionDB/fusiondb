@@ -14,15 +14,19 @@
 package com.facebook.presto.server;
 
 import com.facebook.airlift.node.NodeInfo;
+import com.facebook.presto.client.CoordinatorInfo;
 import com.facebook.presto.client.NodeVersion;
 import com.facebook.presto.client.ServerInfo;
 import com.facebook.presto.metadata.StaticCatalogStore;
 import com.facebook.presto.spi.NodeState;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import javax.annotation.security.RolesAllowed;
 import javax.inject.Inject;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
+import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
@@ -30,8 +34,11 @@ import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
+import java.io.IOException;
 import java.util.Optional;
+import java.util.Set;
 
+import static com.facebook.presto.PrestoMediaTypes.APPLICATION_JACKSON_SMILE;
 import static com.facebook.presto.server.security.RoleType.ADMIN;
 import static com.facebook.presto.spi.NodeState.ACTIVE;
 import static com.facebook.presto.spi.NodeState.SHUTTING_DOWN;
@@ -51,6 +58,7 @@ public class ServerInfoResource
     private final StaticCatalogStore catalogStore;
     private final GracefulShutdownHandler shutdownHandler;
     private final long startTime = System.nanoTime();
+    private static CoordinatorInfo coordinatorInfo;
 
     @Inject
     public ServerInfoResource(NodeVersion nodeVersion, NodeInfo nodeInfo, ServerConfig serverConfig, StaticCatalogStore catalogStore, GracefulShutdownHandler shutdownHandler)
@@ -60,6 +68,7 @@ public class ServerInfoResource
         this.coordinator = requireNonNull(serverConfig, "serverConfig is null").isCoordinator();
         this.catalogStore = requireNonNull(catalogStore, "catalogStore is null");
         this.shutdownHandler = requireNonNull(shutdownHandler, "shutdownHandler is null");
+        this.coordinatorInfo = new CoordinatorInfo(environment, System.currentTimeMillis());
     }
 
     @GET
@@ -68,6 +77,36 @@ public class ServerInfoResource
     {
         boolean starting = !catalogStore.areCatalogsLoaded();
         return new ServerInfo(version, environment, coordinator, starting, Optional.of(nanosSince(startTime)));
+    }
+
+    @GET
+    @Path("coordinator")
+    @Produces(APPLICATION_JSON)
+    @RolesAllowed(ADMIN)
+    public CoordinatorInfo getCoordinator()
+    {
+        return coordinatorInfo;
+    }
+
+    @POST
+    @Path("coordinator")
+    @Produces({APPLICATION_JSON, APPLICATION_JACKSON_SMILE})
+    @Consumes({APPLICATION_JSON, APPLICATION_JACKSON_SMILE})
+    public Boolean updateCoordinator(String internalNodes)
+    {
+        requireNonNull(internalNodes, "internalNodes is null");
+        ObjectMapper mapper = new ObjectMapper();
+        TypeReference<Set<Object>> typeRef = new TypeReference<Set<Object>>() {};
+        try {
+            Set<Object> objects = mapper.readValue(internalNodes, typeRef);
+            coordinatorInfo.setInternalNodes(objects);
+        }
+        catch (IOException e) {
+            e.printStackTrace();
+        }
+        coordinatorInfo.setEnvironment(environment);
+        coordinatorInfo.setUpdateTime(System.currentTimeMillis());
+        return true;
     }
 
     @PUT

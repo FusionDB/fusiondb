@@ -45,7 +45,7 @@
         <air.maven.version>3.3.9</air.maven.version>
 
         <dep.antlr.version>4.7.1</dep.antlr.version>
-        <dep.airlift.version>0.198</dep.airlift.version>
+        <dep.airlift.version>0.197</dep.airlift.version>
         <dep.packaging.version>${dep.airlift.version}</dep.packaging.version>
         <dep.slice.version>0.38</dep.slice.version>
         <dep.testing-mysql-server-5.version>0.6</dep.testing-mysql-server-5.version>
@@ -81,6 +81,7 @@
         <air.test.jvmsize>4g</air.test.jvmsize>
 
         <air.javadoc.lint>-missing</air.javadoc.lint>
+        <!--<air.check.skip-all>true</air.check.skip-all>-->
     </properties>
 
     <modules>
@@ -164,10 +165,17 @@
         <module>presto-druid</module>
         <module>presto-common</module>
         <module>presto-thrift-testing-udf-server</module>
+        <module>fusion-server</module>
     </modules>
 
     <dependencyManagement>
         <dependencies>
+            <dependency>
+                <groupId>com.facebook.presto</groupId>
+                <artifactId>fusion-server</artifactId>
+                <version>0.246-SNAPSHOT</version>
+            </dependency>
+
             <dependency>
                 <groupId>com.facebook.presto</groupId>
                 <artifactId>presto-testing-docker</artifactId>
@@ -1088,7 +1096,7 @@
             <dependency>
                 <groupId>com.facebook.airlift.discovery</groupId>
                 <artifactId>discovery-server</artifactId>
-                <version>1.33</version>
+                <version>1.32</version>
             </dependency>
 
             <dependency>
@@ -1950,6 +1958,25 @@
                         <nexusUrl>https://oss.sonatype.org/</nexusUrl>
                     </configuration>
                 </plugin>
+                <plugin>
+                    <groupId>com.mycila</groupId>
+                    <artifactId>license-maven-plugin</artifactId>
+                    <version>3.0</version>
+                    <configuration>
+                        <validHeaders>
+                            <item> ${air.main.basedir}/src/license/license-header.txt</item>
+                            <item> ${air.main.basedir}/src/license/license-header-alternate-2010.txt</item>
+                            <item> ${air.main.basedir}/src/license/license-header-alternate-2012.txt</item>
+                        </validHeaders>
+                    </configuration>
+                    <executions>
+                        <execution>
+                            <goals>
+                                <goal>check</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
             </plugins>
         </pluginManagement>
 
@@ -1960,7 +1987,6 @@
                 <version>0.3</version>
                 <extensions>true</extensions>
             </plugin>
-
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>

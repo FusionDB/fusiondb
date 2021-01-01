@@ -13,6 +13,8 @@
  */
 package com.facebook.presto.server;
 
+import cn.fusiondb.FusionDB;
+import cn.fusiondb.FusionModule;
 import com.facebook.airlift.bootstrap.Bootstrap;
 import com.facebook.airlift.discovery.client.Announcer;
 import com.facebook.airlift.discovery.client.DiscoveryModule;
@@ -124,7 +126,8 @@ public class PrestoServer
                 new ServerMainModule(sqlParserOptions),
                 new GracefulShutdownModule(),
                 new WarningCollectorModule(),
-                new TempStorageModule());
+                new TempStorageModule(),
+                new FusionModule());
 
         modules.addAll(getAdditionalModules());
 
@@ -159,6 +162,7 @@ public class PrestoServer
 
             injector.getInstance(Announcer.class).start();
 
+            injector.getInstance(FusionDB.class).start();
             log.info("======== SERVER STARTED ========");
         }
         catch (Throwable e) {

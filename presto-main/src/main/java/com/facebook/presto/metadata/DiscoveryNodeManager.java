@@ -192,6 +192,11 @@ public final class DiscoveryNodeManager
                 case HTTP:
                     nodeStates.putIfAbsent(node.getNodeIdentifier(),
                             new HttpRemoteNodeState(httpClient, uriBuilderFrom(node.getInternalUri()).appendPath("/v1/info/state").build()));
+                    // update coordinator info to any worker node
+                    if (getCoordinators().size() > 0) {
+                        new HttpRemoteNodeAsyncCoordinator(httpClient, uriBuilderFrom(node.getInternalUri()).appendPath("/v1/info/coordinator").build(), getCoordinators())
+                                .asyncRefresh();
+                    }
                     break;
                 case THRIFT:
                     if (node.getThriftPort().isPresent()) {
@@ -201,6 +206,7 @@ public final class DiscoveryNodeManager
                     else {
                         // thrift port has not yet been populated; ignore the node for now
                     }
+                    // TODO: update coordinator info to any worker node
                     break;
             }
         }
