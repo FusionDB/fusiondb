@@ -91,8 +91,7 @@ public class StmtExecutor {
             }
         }
 
-        // TODO fdb context 和 client session 需要同步 client 配置, 比如：debug catalog password 等
-        context.setCatalog("minio");
+        // TODO fdb context 和 client session 需要同步 client 配置, 比如：debug password 等
         queryExecutor.run(context, originStmt);
     }
 

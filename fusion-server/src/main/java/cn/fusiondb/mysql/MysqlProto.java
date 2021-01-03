@@ -52,6 +52,14 @@ public class MysqlProto {
     private static boolean authenticate(ConnectContext context, byte[] scramble, byte[] randomString, String user) {
         // TODO Auth Grant
         init(randomString);
+        // parser catalog name by user
+        String[] split = user.split("@");
+        if (split.length == 2) {
+            context.setCatalog(split[1]);
+            user = split[0];
+        } else {
+            logger.warn("Current login user = %s not set catalog", user);
+        }
 
         String usePass = scramble.length == 0 ? "NO" : "YES";
 
@@ -79,7 +87,6 @@ public class MysqlProto {
             ErrorReport.report(ErrorCode.ERR_ACCESS_DENIED_ERROR, user, usePass);
             return false;
         }
-        context.setUser(user);
 
         String sourceAddrs = context.getMysqlChannel().getRemote().split(":")[0];
         long startTimestamp = System.currentTimeMillis();
@@ -172,7 +179,7 @@ public class MysqlProto {
         // check authenticate
         if (!authenticate(context, authPacket.getAuthResponse(), randomString, authPacket.getUser())) {
             sendResponsePacket(context);
-            logger.warn("auth false, user={}", authPacket.getUser());
+            logger.warn("auth false, user = %s catalog = %s database = %s", authPacket.getUser(), context.getCatalog(), authPacket.getDb());
             return false;
         }
 
