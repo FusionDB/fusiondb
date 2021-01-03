@@ -246,7 +246,6 @@ public class QueryExecutor {
 
             return success;
         } catch (RuntimeException e) {
-            System.err.println("Error running command: " + e.getMessage());
             if (queryRunner.isDebug()) {
                 e.printStackTrace();
             }

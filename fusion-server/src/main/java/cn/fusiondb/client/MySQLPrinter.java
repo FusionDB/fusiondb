@@ -81,6 +81,7 @@ public class MySQLPrinter
                     if (value != null) {
                         String type = colTypes.get(colIndex);
                         if (type.startsWith(StandardTypes.VARCHAR)
+                                || type.startsWith(StandardTypes.CHAR)
                                 || type.equals(StandardTypes.BIGINT)
                                 || type.equals(StandardTypes.BOOLEAN)
                                 || type.equals(StandardTypes.DOUBLE)
@@ -158,6 +159,8 @@ public class MySQLPrinter
             return PrimitiveType.DECIMAL;
         } else if (colType.equalsIgnoreCase(StandardTypes.BING_TILE)) {
             return PrimitiveType.BING_TILE;
+        } else if (colType.startsWith(StandardTypes.CHAR)) {
+            return PrimitiveType.VARCHAR;
         }
         return PrimitiveType.STRING;
     }
