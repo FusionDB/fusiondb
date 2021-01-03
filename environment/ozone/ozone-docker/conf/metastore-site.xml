@@ -35,15 +35,15 @@
 
     <property>
         <name>fs.s3a.access.key</name>
-        <value>minio</value>
+        <value>ozone</value>
     </property>
     <property>
         <name>fs.s3a.secret.key</name>
-        <value>minio123</value>
+        <value>ozone123</value>
     </property>
     <property>
         <name>fs.s3a.endpoint</name>
-        <value>http://minio:9000</value>
+        <value>http://ozone-s3-node:9878</value>
     </property>
     <property>
         <name>fs.s3a.path.style.access</name>

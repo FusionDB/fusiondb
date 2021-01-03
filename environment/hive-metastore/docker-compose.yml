@@ -1,15 +1,5 @@
 version: '3.7'
 services:
-  presto-master:
-    hostname: presto-master
-    image: 'prestosql/presto:latest'
-    ports:
-      - '8080:8080'
-    volumes:
-      - ./etc:/usr/lib/presto/etc:ro
-    networks:
-      - presto-network
-
   mariadb:
     hostname: mariadb
     image: mariadb:latest
@@ -25,7 +15,7 @@ services:
 
   hive-metastore:
     hostname: hive-metastore
-    image: 'bitsondatadev/hive-metastore:3.0.0'
+    image: 'fusiondb/hive-metastore:latest'
     ports:
       - '9083:9083' # Metastore Thrift
     volumes:
@@ -36,25 +26,6 @@ services:
       - mariadb
     networks:
       - presto-network
-
-  minio:
-    hostname: minio
-    image: 'minio/minio:latest'
-    container_name: minio
-    ports:
-      - '9000:9000'
-    volumes:
-      - minio-data:/data
-    environment:
-      MINIO_ACCESS_KEY: minio
-      MINIO_SECRET_KEY: minio123
-    command: server /data
-    networks:
-      - presto-network
-
-volumes:
-  minio-data:
-    driver: local
 
 networks:
   presto-network:

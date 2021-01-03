@@ -50,9 +50,33 @@ services:
          - ./docker-config
       command: ["ozone","recon"]
    s3g:
+      hostname: ozone-s3-node
       image: apache/ozone:1.0.0
       ports:
          - 9878:9878
       env_file:
          - ./docker-config
       command: ["ozone","s3g"]
+
+   mariadb:
+      hostname: mariadb
+      image: mariadb:latest
+      ports:
+         - 3306:3306
+      environment:
+         MYSQL_ROOT_PASSWORD: admin
+         MYSQL_USER: admin
+         MYSQL_PASSWORD: admin
+         MYSQL_DATABASE: metastore_db
+
+   hive-metastore:
+      hostname: hive-metastore
+      image: 'fusiondb/hive-metastore:3.0.0'
+      ports:
+         - '9083:9083' # Metastore Thrift
+      volumes:
+         - ./conf/metastore-site.xml:/opt/apache-hive-metastore-3.0.0-bin/conf/metastore-site.xml:ro
+      environment:
+         METASTORE_DB_HOSTNAME: mariadb
+      depends_on:
+         - mariadb
