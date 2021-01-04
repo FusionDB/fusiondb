@@ -1,14 +1,15 @@
 version: '3.7'
 services:
-  presto-master:
-    hostname: presto-master
-    image: 'prestosql/presto:latest'
+  fdb-master:
+    hostname: fdb-master
+    image: 'fusiondb/fusiondb:latest'
     ports:
       - '8080:8080'
+      - '8306:8306'
     volumes:
-      - ./etc:/usr/lib/presto/etc:ro
+      - ./etc:/opt/fusiondb-1.0.0/etc:ro
     networks:
-      - presto-network
+      - fdb-network
 
   mariadb:
     hostname: mariadb
@@ -21,7 +22,7 @@ services:
       MYSQL_PASSWORD: admin
       MYSQL_DATABASE: metastore_db
     networks:
-      - presto-network
+      - fdb-network
 
   hive-metastore:
     hostname: hive-metastore
@@ -35,7 +36,7 @@ services:
     depends_on:
       - mariadb
     networks:
-      - presto-network
+      - fdb-network
 
   minio:
     hostname: minio
@@ -50,12 +51,12 @@ services:
       MINIO_SECRET_KEY: minio123
     command: server /data
     networks:
-      - presto-network
+      - fdb-network
 
 volumes:
   minio-data:
     driver: local
 
 networks:
-  presto-network:
+  fdb-network:
     driver: bridge

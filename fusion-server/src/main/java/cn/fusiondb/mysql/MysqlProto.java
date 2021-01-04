@@ -58,7 +58,7 @@ public class MysqlProto {
             context.setCatalog(split[1]);
             user = split[0];
         } else {
-            logger.warn("Current login user = %s not set catalog", user);
+            logger.warn("Current login user = %s, not set catalog", user);
         }
 
         String usePass = scramble.length == 0 ? "NO" : "YES";

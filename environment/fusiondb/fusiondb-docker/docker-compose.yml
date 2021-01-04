@@ -1,0 +1,16 @@
+version: '3.7'
+services:
+  fdb-master:
+    hostname: fdb-master
+    image: 'fusiondb/fusiondb:latest'
+    ports:
+      - '8080:8080'
+      - '8306:8306'
+    volumes:
+      - ./etc:/opt/fusiondb-1.0.0/etc:ro
+    networks:
+      - fdb-network
+
+networks:
+  fdb-network:
+    driver: bridge

@@ -32,12 +32,16 @@ aws s3 ls --endpoint http://localhost:9878
 aws s3 ls --endpoint http://localhost:9878 s3://ozone
 ```
 
-FusionDB on S3:
+FusionDB on S3 (minio or ozone s3):
 
 ```
-mysql -u root -h hostname -P 8306 -p -D tiny # root/root123
+mysql -u root@ozone -h $hostname -P 8306 -p -D tiny # root/root123
 
-CREATE SCHEMA ozone.tiny WITH (location = 's3a://tiny/');
+or
+
+mysql -u root@minio -h $hostname -P 8306 -p -D tiny # admin/admin123
+
+CREATE SCHEMA ozone.tiny WITH (location = 's3a://tiny/'); # catalog = ozone or minio
 
 use tiny;
 
