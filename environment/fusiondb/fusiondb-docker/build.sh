@@ -15,10 +15,10 @@
 # limitations under the License.
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-mkdir ${DIR}/tmp
-cp ../../../presto-server/target/presto-server-*.tar.gz ${DIR}/tmp
+mkdir ${DIR}/build
+cp ../../../presto-server/target/presto-server-*.tar.gz ${DIR}/build
 export FUSIONDB_VERSION=1.0.0
 docker build --build-arg FUSIONDB_VERSION -t fusiondb/fusiondb .
 docker tag fusiondb/fusiondb fusiondb/fusiondb:${FUSIONDB_VERSION}
 docker image push fusiondb/fusiondb:${FUSIONDB_VERSION}
-rm -rf ${DIR}/tmp
+rm -rf ${DIR}/build

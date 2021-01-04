@@ -10,7 +10,7 @@ ENV FUSIONDB_HOME=/opt/fusiondb-${FUSIONDB_VERSION}
 RUN apt-get update
 RUN apt-get install -y wget python less
 
-COPY tmp/presto-server-*.tar.gz ./
+COPY build/presto-server-*.tar.gz ./
 
 RUN rm -rf ${FUSIONDB_HOME}
 RUN tar -zxf presto-server-*.tar.gz  && rm -f presto-server-*.tar.gz && mv presto-server-* fusiondb-${FUSIONDB_VERSION}
