@@ -78,31 +78,10 @@ public class MySQLPrinter
                 List<String> colTypes = Lists.transform(columns, Column::getType);
                 for (int colIndex = 0; colIndex < colTypes.size(); ++colIndex) {
                     Object value = rowObject[colIndex];
-                    if (value != null) {
-                        String type = colTypes.get(colIndex);
-                        if (type.startsWith(StandardTypes.VARCHAR)
-                                || type.startsWith(StandardTypes.CHAR)
-                                || type.equals(StandardTypes.BIGINT)
-                                || type.equals(StandardTypes.BOOLEAN)
-                                || type.equals(StandardTypes.DOUBLE)
-                                || type.equals(StandardTypes.REAL)
-                                || type.equals(StandardTypes.INTEGER)
-                                || type.equals(StandardTypes.SMALLINT)
-                                || type.equals(StandardTypes.TIMESTAMP)
-                                || type.equals(StandardTypes.DATE)
-                                || type.equals(StandardTypes.TIME)
-                                || type.equals(StandardTypes.BING_TILE)
-                                || type.equals(StandardTypes.DECIMAL)
-                        ) {
+                    if (value != null && !value.equals("")) {
+                        PrimitiveType type = getPrimitiveTypeFromNativeType(colTypes.get(colIndex));
+                        if (type != null) {
                             serializer.writeLenEncodedString(value.toString());
-                        } else if (value.getClass().isArray()) {
-                            // TODO error
-                            JSONArray jsonArray = JSONArray.fromObject(value);
-                            serializer.writeLenEncodedString(jsonArray.toString());
-                        } else {
-                            // TODO error
-                            JSONObject json = JSONObject.fromObject(value);
-                            serializer.writeLenEncodedString(json.toString());
                         }
                     } else {
                         serializer.writeNull();
@@ -135,7 +114,7 @@ public class MySQLPrinter
     }
 
     public static PrimitiveType getPrimitiveTypeFromNativeType(String colType) {
-        if (colType.equalsIgnoreCase(StandardTypes.VARCHAR)) {
+        if (colType.startsWith(StandardTypes.VARCHAR)) {
             return PrimitiveType.VARCHAR;
         } else if (colType.equalsIgnoreCase(StandardTypes.BOOLEAN)) {
             return PrimitiveType.BOOL;
@@ -155,12 +134,16 @@ public class MySQLPrinter
             return PrimitiveType.DATE;
         } else if (colType.equalsIgnoreCase(StandardTypes.TIME)) {
             return PrimitiveType.TIME;
-        } else if (colType.equalsIgnoreCase(StandardTypes.DECIMAL)) {
+        } else if (colType.startsWith(StandardTypes.DECIMAL)) {
             return PrimitiveType.DECIMAL;
         } else if (colType.equalsIgnoreCase(StandardTypes.BING_TILE)) {
             return PrimitiveType.BING_TILE;
         } else if (colType.startsWith(StandardTypes.CHAR)) {
             return PrimitiveType.VARCHAR;
+        } else if (colType.startsWith(StandardTypes.VARBINARY)) {
+            return PrimitiveType.STRING;
+        } else if (colType.equalsIgnoreCase(StandardTypes.JSON)) {
+            return PrimitiveType.STRING;
         }
         return PrimitiveType.STRING;
     }
