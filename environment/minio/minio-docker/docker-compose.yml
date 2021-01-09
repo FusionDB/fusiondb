@@ -26,7 +26,7 @@ services:
 
   hive-metastore:
     hostname: hive-metastore
-    image: 'bitsondatadev/hive-metastore:3.0.0'
+    image: 'fusiondb/hive-metastore:3.0.0'
     ports:
       - '9083:9083' # Metastore Thrift
     volumes:
