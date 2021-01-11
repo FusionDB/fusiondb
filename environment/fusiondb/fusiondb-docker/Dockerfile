@@ -15,7 +15,7 @@ COPY build/presto-server-*.tar.gz ./
 RUN rm -rf ${FUSIONDB_HOME}
 RUN tar -zxf presto-server-*.tar.gz  && rm -f presto-server-*.tar.gz && mv presto-server-* fusiondb-${FUSIONDB_VERSION}
 
-COPY etc ${FUSIONDB_HOME}/etc
+COPY master/etc ${FUSIONDB_HOME}/etc
 
 RUN groupadd -r fdb --gid=1000 && \
     useradd -r -g fdb --uid=1000 -d ${FUSIONDB_HOME} fdb && \

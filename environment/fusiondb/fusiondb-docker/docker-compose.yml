@@ -7,7 +7,14 @@ services:
       - '8080:8080'
       - '8306:8306'
     volumes:
-      - ./etc:/opt/fusiondb-1.0.0/etc:ro
+      - ./master/etc:/opt/fusiondb-1.0.0/etc:ro
+    networks:
+      - fdb-network
+
+  fdb-worker:
+    image: 'fusiondb/fusiondb:latest'
+    volumes:
+      - ./worker/etc:/opt/fusiondb-1.0.0/etc:ro
     networks:
       - fdb-network
 
